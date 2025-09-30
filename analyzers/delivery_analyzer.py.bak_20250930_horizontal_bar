@@ -1,0 +1,75 @@
+import pandas as pd
+import plotly.graph_objects as go
+import logging
+
+
+class DeliveryAnalyzer:
+    def __init__(self, products_df):
+        """배송 타입 분석기 초기화"""
+        self.products_df = products_df
+        
+        # delivery_type 컬럼이 없거나 비어있으면 기본값 설정
+        if 'delivery_type' not in self.products_df.columns:
+            logging.warning("delivery_type 컬럼이 없습니다. '일반배송'으로 기본값 설정합니다.")
+            self.products_df['delivery_type'] = '일반배송'
+        
+        self.stats = self._calculate_delivery_stats()
+    
+    def _calculate_delivery_stats(self):
+        """배송 타입별 통계 계산"""
+        delivery_counts = self.products_df['delivery_type'].value_counts()
+        total = len(self.products_df)
+        
+        stats = {
+            'counts': delivery_counts.to_dict(),
+            'percentages': (delivery_counts / total * 100).to_dict(),
+            'total': total
+        }
+        
+        logging.info(f"배송 타입 통계: {stats}")
+        return stats
+    
+    def create_delivery_pie_chart(self):
+        """배송 타입 비율 원형 차트 생성"""
+        if self.stats['total'] == 0:
+            logging.warning("분석할 데이터가 없습니다.")
+            return None
+        
+        # 배송 타입별 개수
+        labels = list(self.stats['counts'].keys())
+        values = list(self.stats['counts'].values())
+        
+        # 색상 지정: 로켓배송(빨강), 그로스(주황), 일반배송(회색)
+        colors = []
+        for label in labels:
+            if '로켓배송' in label or 'rocket' in label.lower():
+                colors.append('#E63946')  # 빨강
+            elif '그로스' in label or 'gross' in label.lower():
+                colors.append('#F77F00')  # 주황
+            else:
+                colors.append('#6C757D')  # 회색
+        
+        # 원형 차트 생성
+        fig = go.Figure(data=[go.Pie(
+            labels=labels,
+            values=values,
+            marker=dict(colors=colors),
+            textinfo='label+percent',
+            textposition='inside',
+            hovertemplate='<b>%{label}</b><br>개수: %{value}<br>비율: %{percent}<extra></extra>'
+        )])
+        
+        fig.update_layout(
+            title=f"배송 타입 분포 (총 {self.stats['total']}개 상품)",
+            height=400,
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.2,
+                xanchor="center",
+                x=0.5
+            )
+        )
+        
+        return fig
